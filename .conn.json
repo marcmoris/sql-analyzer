@@ -1,0 +1,9 @@
+{
+  "server": "10.10.10.14",
+  "database": "Solstice",
+  "user": "sa",
+  "password": "$$Akk555$$",
+  "port": 1433,
+  "encrypt": true,
+  "trustServerCertificate": true
+}
