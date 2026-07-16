@@ -5,13 +5,15 @@ import path from 'path';
 const CONFIG_PATH = path.join(process.cwd(), '.conn.json');
 
 export interface ConnConfig {
-  server:   string;
-  database: string;
-  user:     string;
-  password: string;
-  port:     number;
-  encrypt:  boolean;
+  server:      string;
+  database:    string;
+  user:        string;
+  password:    string;
+  port:        number;
+  encrypt:     boolean;
   trustServerCertificate: boolean;
+  windowsAuth?: boolean;
+  domain?:      string;
 }
 
 let _pool: sql.ConnectionPool | null = null;
@@ -45,11 +47,9 @@ export async function getPool(): Promise<sql.ConnectionPool> {
   const cfg = loadConfig();
   if (!cfg) throw new Error('Aucune connexion configurée.');
 
-  _pool = new sql.ConnectionPool({
+  const poolConfig: sql.config = {
     server:   cfg.server,
     database: cfg.database,
-    user:     cfg.user,
-    password: cfg.password,
     port:     cfg.port || 1433,
     options: {
       encrypt:                cfg.encrypt ?? false,
@@ -58,7 +58,25 @@ export async function getPool(): Promise<sql.ConnectionPool> {
       connectTimeout:         15000,
       requestTimeout:         120000,
     },
-  });
+  };
+
+  if (cfg.windowsAuth) {
+    // Windows Authentication — use Kerberos/NTLM via domain option
+    poolConfig.domain = cfg.domain || undefined;
+    poolConfig.authentication = {
+      type: 'ntlm',
+      options: {
+        domain:   cfg.domain || '',
+        userName: cfg.user    || '',
+        password: cfg.password || '',
+      },
+    };
+  } else {
+    poolConfig.user     = cfg.user;
+    poolConfig.password = cfg.password;
+  }
+
+  _pool = new sql.ConnectionPool(poolConfig);
   await _pool.connect();
   return _pool;
 }

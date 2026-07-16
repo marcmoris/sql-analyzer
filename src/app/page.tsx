@@ -58,7 +58,7 @@ export default function Dashboard() {
   // ── Connection state
   const [isConnected, setIsConnected] = useState(false);
   const [connInfo,    setConnInfo]    = useState<ConnInfo | null>(null);
-  const [connForm,    setConnForm]    = useState({ server: '', database: 'master', user: 'sa', password: '', port: '1433', encrypt: false, trustServerCertificate: true });
+  const [connForm,    setConnForm]    = useState({ server: '', database: 'master', user: 'sa', password: '', port: '1433', encrypt: false, trustServerCertificate: true, windowsAuth: false, domain: '' });
   const [connecting,  setConnecting]  = useState(false);
   const [connError,   setConnError]   = useState('');
 
@@ -192,8 +192,18 @@ export default function Dashboard() {
       <div className="bg-mesh" style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}/>
       <div className="connect-screen" style={{ position:'relative', zIndex:1 }}>
         <div className="connect-card">
-          <div style={{ fontSize: 36, marginBottom: 16 }}>🔌</div>
-          <div className="connect-title">SQL Performance Analyzer</div>
+          {/* Solstice Plus branding on login screen */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, justifyContent: 'center' }}>
+            <svg width="44" height="44" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 15 Q20 3 34 15" stroke="#9ca3af" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+              <text x="5" y="34" fontFamily="Georgia, serif" fontSize="22" fontWeight="700" fill="#e5e7eb">S</text>
+              <text x="23" y="30" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700" fill="#818cf8">+</text>
+            </svg>
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, textAlign: 'left' }}>
+              <span style={{ fontSize: 15, fontWeight: 400, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>Solstice Plus</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>SQL Analyzer</span>
+            </div>
+          </div>
           <div className="connect-subtitle">Connectez-vous à votre instance SQL Server pour commencer l'analyse.</div>
           <form onSubmit={handleConnect}>
             <div className="field-row">
@@ -210,16 +220,46 @@ export default function Dashboard() {
               <label className="field-label">Base de données</label>
               <input className="field-input" placeholder="master" value={connForm.database} onChange={e => setConnForm(p => ({...p, database: e.target.value}))}/>
             </div>
-            <div className="field-row">
-              <div className="field">
-                <label className="field-label">Utilisateur</label>
-                <input className="field-input" value={connForm.user} onChange={e => setConnForm(p => ({...p, user: e.target.value}))} required/>
-              </div>
-              <div className="field">
-                <label className="field-label">Mot de passe</label>
-                <input className="field-input" type="password" value={connForm.password} onChange={e => setConnForm(p => ({...p, password: e.target.value}))}/>
+            {/* Auth mode toggle */}
+            <div className="field" style={{ marginBottom: 4 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '8px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 4 }}>Mode&nbsp;:</span>
+                <label style={{ display:'flex', gap:6, alignItems:'center', cursor:'pointer', padding:'4px 10px', borderRadius:6, background: !connForm.windowsAuth ? 'rgba(99,102,241,0.18)' : 'transparent', color: !connForm.windowsAuth ? '#a5b4fc' : 'var(--text-muted)', fontSize:12, fontWeight:600, transition:'all .2s' }}>
+                  <input type="radio" name="authMode" style={{ display:'none' }} checked={!connForm.windowsAuth} onChange={() => setConnForm(p => ({ ...p, windowsAuth: false }))}/>
+                  🔑 SQL Server
+                </label>
+                <label style={{ display:'flex', gap:6, alignItems:'center', cursor:'pointer', padding:'4px 10px', borderRadius:6, background: connForm.windowsAuth ? 'rgba(99,102,241,0.18)' : 'transparent', color: connForm.windowsAuth ? '#a5b4fc' : 'var(--text-muted)', fontSize:12, fontWeight:600, transition:'all .2s' }}>
+                  <input type="radio" name="authMode" style={{ display:'none' }} checked={connForm.windowsAuth} onChange={() => setConnForm(p => ({ ...p, windowsAuth: true }))}/>
+                  🪟 Windows
+                </label>
               </div>
             </div>
+
+            {/* SQL Server auth fields */}
+            {!connForm.windowsAuth && (
+              <div className="field-row">
+                <div className="field">
+                  <label className="field-label">Utilisateur</label>
+                  <input className="field-input" value={connForm.user} onChange={e => setConnForm(p => ({...p, user: e.target.value}))} required/>
+                </div>
+                <div className="field">
+                  <label className="field-label">Mot de passe</label>
+                  <input className="field-input" type="password" value={connForm.password} onChange={e => setConnForm(p => ({...p, password: e.target.value}))}/>
+                </div>
+              </div>
+            )}
+
+            {/* Windows Auth — optional domain */}
+            {connForm.windowsAuth && (
+              <div className="field">
+                <label className="field-label">Domaine <span style={{ color:'var(--text-muted)', fontWeight:400, fontSize:11 }}>(optionnel — ex: CORP)</span></label>
+                <input className="field-input" placeholder="CORP" value={connForm.domain} onChange={e => setConnForm(p => ({...p, domain: e.target.value}))}/>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, padding: '6px 10px', background: 'rgba(99,102,241,0.07)', borderRadius: 6 }}>
+                  🪟 La session Windows de l'utilisateur courant sera utilisée pour s'authentifier.
+                </div>
+              </div>
+            )}
+
             <div className="field" style={{ display: 'flex', gap: 20 }}>
               <label className="field-checkbox">
                 <input type="checkbox" checked={connForm.encrypt} onChange={e => setConnForm(p => ({...p, encrypt: e.target.checked}))}/> Chiffrement SSL
@@ -256,12 +296,24 @@ export default function Dashboard() {
       <div className="bg-mesh"/>
       {/* Topbar */}
       <header className="topbar">
-        <div className="topbar-logo">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+        <div className="topbar-logo" style={{ gap: 10 }}>
+          {/* Solstice Plus logo mark */}
+          <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Arc above S */}
+            <path d="M8 14 Q20 4 32 14" stroke="#9ca3af" strokeWidth="2" fill="none" strokeLinecap="round"/>
+            {/* S letter */}
+            <text x="7" y="32" fontFamily="Georgia, serif" fontSize="20" fontWeight="700" fill="#e5e7eb">S</text>
+            {/* + sign */}
+            <text x="23" y="28" fontFamily="Arial, sans-serif" fontSize="13" fontWeight="700" fill="#6366f1">+</text>
           </svg>
-          SQL Analyzer
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--text-muted)', letterSpacing: '0.01em' }}>
+              Solstice Plus
+            </span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em' }}>
+              SQL Analyzer
+            </span>
+          </div>
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           <span style={{ color: 'var(--success)', marginRight: 6 }}>●</span>

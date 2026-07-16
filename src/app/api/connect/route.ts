@@ -3,6 +3,7 @@ import { saveConfig, getPool, clearConfig, loadConfig, ConnConfig } from '@/lib/
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as Partial<ConnConfig>;
+  const isWinAuth = Boolean(body.windowsAuth);
   const cfg: ConnConfig = {
     server:   body.server   || '',
     database: body.database || 'master',
@@ -11,9 +12,14 @@ export async function POST(req: NextRequest) {
     port:     Number(body.port) || 1433,
     encrypt:  Boolean(body.encrypt),
     trustServerCertificate: body.trustServerCertificate ?? true,
+    windowsAuth: isWinAuth,
+    domain:      body.domain || '',
   };
-  if (!cfg.server || !cfg.user) {
-    return NextResponse.json({ success: false, message: 'Serveur et utilisateur requis.' }, { status: 400 });
+  if (!cfg.server) {
+    return NextResponse.json({ success: false, message: 'Serveur requis.' }, { status: 400 });
+  }
+  if (!isWinAuth && !cfg.user) {
+    return NextResponse.json({ success: false, message: 'Utilisateur requis (authentification SQL Server).' }, { status: 400 });
   }
   try {
     saveConfig(cfg);
