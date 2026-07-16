@@ -364,6 +364,41 @@ select.field-input option {
 .data-table .text-right { text-align: right; }
 .data-table .text-mono { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
 
+/* ── Column resize handle ─────────────────────────────────────────────────── */
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.col-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 70%;
+  background: transparent;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.col-resize-handle:hover::after {
+  background: rgba(99, 102, 241, 0.55);
+}
+
+.col-resize-handle:active::after,
+body[style*="col-resize"] .col-resize-handle::after {
+  background: #6366f1;
+}
+
+
+
 /* ── Progress bars ───────────────────────────────────────────────────────── */
 .progress-bar {
   height: 6px; border-radius: 3px;

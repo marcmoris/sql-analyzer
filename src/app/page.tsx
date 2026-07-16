@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import ChartsTab from './ChartsTab';
+import ResizableTable from './ResizableTable';
 
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -433,16 +434,14 @@ export default function Dashboard() {
 
               <div className="card">
                 <div className="card-header"><span className="card-title">📁 Bases de données</span></div>
-                <div className="data-table-wrap">
-                  <table className="data-table">
-                    <thead><tr><th>Nom</th><th className="text-right">Taille (GB)</th></tr></thead>
-                    <tbody>
-                      {health.databases?.map((d, i) => (
-                        <tr key={i}><td>{d.name}</td><td className="text-right text-mono">{d.sizeGb}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ResizableTable columns={[
+                  {label:'Nom'},
+                  {label:'Taille (GB)', className:'text-right'},
+                ]}>
+                  {health.databases?.map((d, i) => (
+                    <tr key={i}><td>{d.name}</td><td className="text-right text-mono">{d.sizeGb}</td></tr>
+                  ))}
+                </ResizableTable>
               </div>
             </> : <div className="empty-state">Aucune donnée</div>}
           </div>
@@ -494,33 +493,31 @@ export default function Dashboard() {
             {loading.missing ? <div className="loading-state"><div className="spinner"/> Analyse…</div> :
              errors.missing  ? <div className="error-box">{errors.missing}</div> : (
               <div className="card">
-                <div className="data-table-wrap">
-                  <table className="data-table">
-                    <thead><tr><th>Base</th><th>Table</th><th>Impact</th><th>Seeks</th><th>Score</th><th></th></tr></thead>
-                    <tbody>
-                      {missingIdx.map((idx, i) => (
-                        <React.Fragment key={i}>
-                          <tr style={{ cursor:'pointer' }} onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}>
-                            <td><span className="badge badge-neutral">{idx.database_name}</span></td>
-                            <td className="text-mono text-sm">{idx.table_name?.split('.').pop()?.replace(/\[|\]/g,'')}</td>
-                            <td><span style={{ color: idx.avg_user_impact > 80 ? '#ef4444' : idx.avg_user_impact > 50 ? '#f59e0b' : '#10b981', fontWeight:700 }}>{idx.avg_user_impact}%</span></td>
-                            <td className="text-mono">{fmt(idx.user_seeks)}</td>
-                            <td className="text-mono">{fmt(idx.score)}</td>
-                            <td><span style={{ fontSize:10, color:'var(--text-muted)' }}>{expandedIdx === i ? '▲' : '▼'} script</span></td>
-                          </tr>
-                          {expandedIdx === i && (
-                            <tr><td colSpan={6} style={{ padding:'0 14px 14px' }}>
-                              <pre className="sql-block">{idx.script}</pre>
-                              <button className="copy-btn" style={{ marginTop:6 }} onClick={() => { copy(idx.script); setCopiedIdx(i); setTimeout(()=>setCopiedIdx(null),2000); }}>
-                                {copiedIdx === i ? '✓ Copié!' : '📋 Copier'}
-                              </button>
-                            </td></tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ResizableTable columns={[
+                  {label:'Base'},{label:'Table'},{label:'Impact'},
+                  {label:'Seeks'},{label:'Score'},{label:''},
+                ]}>
+                  {missingIdx.map((idx, i) => (
+                    <React.Fragment key={i}>
+                      <tr style={{ cursor:'pointer' }} onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}>
+                        <td><span className="badge badge-neutral">{idx.database_name}</span></td>
+                        <td className="text-mono text-sm">{idx.table_name?.split('.').pop()?.replace(/\[|\]/g,'')}</td>
+                        <td><span style={{ color: idx.avg_user_impact > 80 ? '#ef4444' : idx.avg_user_impact > 50 ? '#f59e0b' : '#10b981', fontWeight:700 }}>{idx.avg_user_impact}%</span></td>
+                        <td className="text-mono">{fmt(idx.user_seeks)}</td>
+                        <td className="text-mono">{fmt(idx.score)}</td>
+                        <td><span style={{ fontSize:10, color:'var(--text-muted)' }}>{expandedIdx === i ? '▲' : '▼'} script</span></td>
+                      </tr>
+                      {expandedIdx === i && (
+                        <tr><td colSpan={6} style={{ padding:'0 14px 14px' }}>
+                          <pre className="sql-block">{idx.script}</pre>
+                          <button className="copy-btn" style={{ marginTop:6 }} onClick={() => { copy(idx.script); setCopiedIdx(i); setTimeout(()=>setCopiedIdx(null),2000); }}>
+                            {copiedIdx === i ? '✓ Copié!' : '📋 Copier'}
+                          </button>
+                        </td></tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </ResizableTable>
               </div>
             )}
           </div>
@@ -546,35 +543,37 @@ export default function Dashboard() {
             {loading.queries ? <div className="loading-state"><div className="spinner"/> Analyse du cache…</div> :
              errors.queries  ? <div className="error-box">{errors.queries}</div> : (
               <div className="card">
-                <div className="data-table-wrap">
-                  <table className="data-table">
-                    <thead><tr><th>Requête</th><th className="text-right">Exec.</th><th className="text-right">CPU total</th><th className="text-right">CPU moy.</th><th className="text-right">Lectures</th><th className="text-right">Durée moy.</th></tr></thead>
-                    <tbody>
-                      {queries.map((q, i) => (
-                        <React.Fragment key={i}>
-                          <tr style={{ cursor:'pointer' }} onClick={() => setExpandedQuery(expandedQuery===i?null:i)}>
-                            <td style={{ maxWidth:400 }}>
-                              <code style={{ fontSize:11, color:'#a5b4fc', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                {q.query_text?.trim().replace(/\s+/g,' ').slice(0,120)}
-                              </code>
-                            </td>
-                            <td className="text-right text-mono">{fmt(q.execution_count)}</td>
-                            <td className="text-right text-mono">{fmtMs(q.total_cpu_ms)}</td>
-                            <td className="text-right text-mono">{fmtMs(q.avg_cpu_ms)}</td>
-                            <td className="text-right text-mono">{fmt(q.total_reads)}</td>
-                            <td className="text-right text-mono">{fmtMs(q.avg_duration_ms)}</td>
-                          </tr>
-                          {expandedQuery === i && (
-                            <tr><td colSpan={6} style={{ padding:'0 14px 14px' }}>
-                              <pre className="sql-block">{q.query_text}</pre>
-                              <button className="copy-btn" style={{ marginTop:6 }} onClick={() => copy(q.query_text)}>📋 Copier</button>
-                            </td></tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ResizableTable columns={[
+                  {label:'Requête'},
+                  {label:'Exec.',     className:'text-right'},
+                  {label:'CPU total', className:'text-right'},
+                  {label:'CPU moy.',  className:'text-right'},
+                  {label:'Lectures',  className:'text-right'},
+                  {label:'Durée moy.',className:'text-right'},
+                ]}>
+                  {queries.map((q, i) => (
+                    <React.Fragment key={i}>
+                      <tr style={{ cursor:'pointer' }} onClick={() => setExpandedQuery(expandedQuery===i?null:i)}>
+                        <td style={{ maxWidth:400 }}>
+                          <code style={{ fontSize:11, color:'#a5b4fc', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {q.query_text?.trim().replace(/\s+/g,' ').slice(0,120)}
+                          </code>
+                        </td>
+                        <td className="text-right text-mono">{fmt(q.execution_count)}</td>
+                        <td className="text-right text-mono">{fmtMs(q.total_cpu_ms)}</td>
+                        <td className="text-right text-mono">{fmtMs(q.avg_cpu_ms)}</td>
+                        <td className="text-right text-mono">{fmt(q.total_reads)}</td>
+                        <td className="text-right text-mono">{fmtMs(q.avg_duration_ms)}</td>
+                      </tr>
+                      {expandedQuery === i && (
+                        <tr><td colSpan={6} style={{ padding:'0 14px 14px' }}>
+                          <pre className="sql-block">{q.query_text}</pre>
+                          <button className="copy-btn" style={{ marginTop:6 }} onClick={() => copy(q.query_text)}>📋 Copier</button>
+                        </td></tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </ResizableTable>
               </div>
             )}
           </div>
@@ -591,60 +590,62 @@ export default function Dashboard() {
             {loading.indexes ? <div className="loading-state"><div className="spinner"/> Analyse…</div> :
              errors.indexes  ? <div className="error-box">{errors.indexes}</div> : (
               <div className="card">
-                <div className="data-table-wrap">
-                  <table className="data-table">
-                    <thead><tr><th>Table</th><th>Index</th><th className="text-right">Seeks</th><th className="text-right">Scans</th><th className="text-right">Lookups</th><th className="text-right">Updates</th><th>Dernière utilisation</th><th>Recommandation</th><th></th></tr></thead>
-                    <tbody>
-                      {idxUsage.map((idx, i) => {
-                        const lastRead = [idx.last_user_seek, idx.last_user_scan, idx.last_user_lookup]
-                          .filter(Boolean).map(d => new Date(d!)).sort((a,b)=>b.getTime()-a.getTime())[0];
-                        const lastUsed = lastRead ? lastRead.toLocaleDateString('fr-CA') : '—';
-                        const daysSince = lastRead ? Math.floor((Date.now() - lastRead.getTime()) / 86400000) : null;
-                        const canDrop = !!idx.drop_script;
-                        const isExpanded = expandedDropIdx === i;
-                        return (
-                          <React.Fragment key={i}>
-                            <tr style={{ cursor: canDrop ? 'pointer' : 'default', background: isExpanded ? 'rgba(239,68,68,0.04)' : undefined }}
-                                onClick={() => canDrop && setExpandedDropIdx(isExpanded ? null : i)}>
-                              <td className="text-mono text-sm">{idx.table_name}</td>
-                              <td className="text-sm" style={{ color:'var(--text-muted)' }}>{idx.index_name}</td>
-                              <td className="text-right text-mono">{fmt(idx.user_seeks)}</td>
-                              <td className="text-right text-mono">{fmt(idx.user_scans)}</td>
-                              <td className="text-right text-mono">{fmt(idx.user_lookups)}</td>
-                              <td className="text-right text-mono">{fmt(idx.user_updates)}</td>
-                              <td className="text-sm" title={lastUsed}>
-                                {daysSince !== null
-                                  ? <span style={{ color: daysSince > 30 ? '#ef4444' : daysSince > 7 ? '#f59e0b' : '#10b981' }}>{lastUsed} ({daysSince}j)</span>
-                                  : <span style={{ color:'var(--text-muted)' }}>Jamais</span>}
-                              </td>
-                              <td>
-                                {idx.recommendation === 'UNUSED_HIGH_MAINT' && <span className="badge badge-critical">Supprimer (inutilisé + coûteux)</span>}
-                                {idx.recommendation === 'UNUSED' && <span className="badge badge-warning">Inutilisé</span>}
-                                {idx.recommendation === 'HIGH_WRITE_LOW_READ' && <span className="badge badge-warning">Trop d'écritures</span>}
-                                {idx.recommendation === 'OK' && <span className="badge badge-success">✓ OK</span>}
-                              </td>
-                              <td>{canDrop && <span style={{ fontSize:10, color:'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'} DROP</span>}</td>
-                            </tr>
-                            {isExpanded && idx.drop_script && (
-                              <tr>
-                                <td colSpan={9} style={{ padding:'0 14px 14px' }}>
-                                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop:4 }}>
-                                    <span style={{ fontSize:11, background:'rgba(239,68,68,0.15)', color:'#ef4444', padding:'3px 8px', borderRadius:4, fontWeight:600 }}>⚠️ Script de suppression — irréversible!</span>
-                                  </div>
-                                  <pre className="sql-block">{idx.drop_script}</pre>
-                                  <button className="copy-btn" style={{ marginTop:6, background:'rgba(239,68,68,0.15)', borderColor:'rgba(239,68,68,0.3)', color:'#ef4444' }}
-                                    onClick={e => { e.stopPropagation(); copy(idx.drop_script!); setCopiedDrop(i); setTimeout(()=>setCopiedDrop(null),2000); }}>
-                                    {copiedDrop === i ? '✓ Copié!' : '📋 Copier le DROP INDEX'}
-                                  </button>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <ResizableTable columns={[
+                  {label:'Table'},{label:'Index'},
+                  {label:'Seeks',              className:'text-right'},
+                  {label:'Scans',              className:'text-right'},
+                  {label:'Lookups',            className:'text-right'},
+                  {label:'Updates',            className:'text-right'},
+                  {label:'Dernière utilisation'},{label:'Recommandation'},{label:''},
+                ]}>
+                  {idxUsage.map((idx, i) => {
+                    const lastRead = [idx.last_user_seek, idx.last_user_scan, idx.last_user_lookup]
+                      .filter(Boolean).map(d => new Date(d!)).sort((a,b)=>b.getTime()-a.getTime())[0];
+                    const lastUsed = lastRead ? lastRead.toLocaleDateString('fr-CA') : '—';
+                    const daysSince = lastRead ? Math.floor((Date.now() - lastRead.getTime()) / 86400000) : null;
+                    const canDrop = !!idx.drop_script;
+                    const isExpanded = expandedDropIdx === i;
+                    return (
+                      <React.Fragment key={i}>
+                        <tr style={{ cursor: canDrop ? 'pointer' : 'default', background: isExpanded ? 'rgba(239,68,68,0.04)' : undefined }}
+                            onClick={() => canDrop && setExpandedDropIdx(isExpanded ? null : i)}>
+                          <td className="text-mono text-sm">{idx.table_name}</td>
+                          <td className="text-sm" style={{ color:'var(--text-muted)' }}>{idx.index_name}</td>
+                          <td className="text-right text-mono">{fmt(idx.user_seeks)}</td>
+                          <td className="text-right text-mono">{fmt(idx.user_scans)}</td>
+                          <td className="text-right text-mono">{fmt(idx.user_lookups)}</td>
+                          <td className="text-right text-mono">{fmt(idx.user_updates)}</td>
+                          <td className="text-sm" title={lastUsed}>
+                            {daysSince !== null
+                              ? <span style={{ color: daysSince > 30 ? '#ef4444' : daysSince > 7 ? '#f59e0b' : '#10b981' }}>{lastUsed} ({daysSince}j)</span>
+                              : <span style={{ color:'var(--text-muted)' }}>Jamais</span>}
+                          </td>
+                          <td>
+                            {idx.recommendation === 'UNUSED_HIGH_MAINT' && <span className="badge badge-critical">Supprimer (inutilisé + coûteux)</span>}
+                            {idx.recommendation === 'UNUSED' && <span className="badge badge-warning">Inutilisé</span>}
+                            {idx.recommendation === 'HIGH_WRITE_LOW_READ' && <span className="badge badge-warning">Trop d'écritures</span>}
+                            {idx.recommendation === 'OK' && <span className="badge badge-success">✓ OK</span>}
+                          </td>
+                          <td>{canDrop && <span style={{ fontSize:10, color:'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'} DROP</span>}</td>
+                        </tr>
+                        {isExpanded && idx.drop_script && (
+                          <tr>
+                            <td colSpan={9} style={{ padding:'0 14px 14px' }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop:4 }}>
+                                <span style={{ fontSize:11, background:'rgba(239,68,68,0.15)', color:'#ef4444', padding:'3px 8px', borderRadius:4, fontWeight:600 }}>⚠️ Script de suppression — irréversible!</span>
+                              </div>
+                              <pre className="sql-block">{idx.drop_script}</pre>
+                              <button className="copy-btn" style={{ marginTop:6, background:'rgba(239,68,68,0.15)', borderColor:'rgba(239,68,68,0.3)', color:'#ef4444' }}
+                                onClick={e => { e.stopPropagation(); copy(idx.drop_script!); setCopiedDrop(i); setTimeout(()=>setCopiedDrop(null),2000); }}>
+                                {copiedDrop === i ? '✓ Copié!' : '📋 Copier le DROP INDEX'}
+                              </button>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </ResizableTable>
               </div>
             )}
           </div>
@@ -661,36 +662,36 @@ export default function Dashboard() {
             {loading.frag ? <div className="loading-state"><div className="spinner"/> Analyse DETAILED en cours (peut prendre quelques minutes)…</div> :
              errors.frag   ? <div className="error-box">{errors.frag}</div> : (
               <div className="card">
-                <div className="data-table-wrap">
-                  <table className="data-table">
-                    <thead><tr><th>Base</th><th>Table</th><th>Index</th><th className="text-right">Fragm.</th><th className="text-right">Pages</th><th>Action</th><th></th></tr></thead>
-                    <tbody>
-                      {fragData.map((f, i) => (
-                        <React.Fragment key={i}>
-                          <tr style={{ cursor: f.action_script ? 'pointer' : 'default' }} onClick={() => f.action_script && setExpandedFrag(expandedFrag===i?null:i)}>
-                            <td><span className="badge badge-neutral">{f.database_name}</span></td>
-                            <td className="text-mono text-sm">{f.table_name}</td>
-                            <td className="text-sm" style={{ color:'var(--text-muted)' }}>{f.index_name}</td>
-                            <td className="text-right text-mono" style={{ color: FRAG_COLOR(f.avg_fragmentation_pct), fontWeight:700 }}>{f.avg_fragmentation_pct}%</td>
-                            <td className="text-right text-mono">{fmt(f.page_count)}</td>
-                            <td>
-                              {f.recommendation === 'REBUILD'    && <span className="badge badge-critical">REBUILD</span>}
-                              {f.recommendation === 'REORGANIZE' && <span className="badge badge-warning">REORGANIZE</span>}
-                              {f.recommendation === 'MONITOR'    && <span className="badge badge-neutral">MONITOR</span>}
-                            </td>
-                            <td>{f.action_script && <span style={{ fontSize:10, color:'var(--text-muted)' }}>{expandedFrag===i?'▲':'▼'}</span>}</td>
-                          </tr>
-                          {expandedFrag === i && f.action_script && (
-                            <tr><td colSpan={7} style={{ padding:'0 14px 14px' }}>
-                              <pre className="sql-block">{f.action_script}</pre>
-                              <button className="copy-btn" style={{ marginTop:6 }} onClick={() => copy(f.action_script)}>📋 Copier</button>
-                            </td></tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ResizableTable columns={[
+                  {label:'Base'},{label:'Table'},{label:'Index'},
+                  {label:'Fragm.',className:'text-right'},
+                  {label:'Pages', className:'text-right'},
+                  {label:'Action'},{label:''},
+                ]}>
+                  {fragData.map((f, i) => (
+                    <React.Fragment key={i}>
+                      <tr style={{ cursor: f.action_script ? 'pointer' : 'default' }} onClick={() => f.action_script && setExpandedFrag(expandedFrag===i?null:i)}>
+                        <td><span className="badge badge-neutral">{f.database_name}</span></td>
+                        <td className="text-mono text-sm">{f.table_name}</td>
+                        <td className="text-sm" style={{ color:'var(--text-muted)' }}>{f.index_name}</td>
+                        <td className="text-right text-mono" style={{ color: FRAG_COLOR(f.avg_fragmentation_pct), fontWeight:700 }}>{f.avg_fragmentation_pct}%</td>
+                        <td className="text-right text-mono">{fmt(f.page_count)}</td>
+                        <td>
+                          {f.recommendation === 'REBUILD'    && <span className="badge badge-critical">REBUILD</span>}
+                          {f.recommendation === 'REORGANIZE' && <span className="badge badge-warning">REORGANIZE</span>}
+                          {f.recommendation === 'MONITOR'    && <span className="badge badge-neutral">MONITOR</span>}
+                        </td>
+                        <td>{f.action_script && <span style={{ fontSize:10, color:'var(--text-muted)' }}>{expandedFrag===i?'▲':'▼'}</span>}</td>
+                      </tr>
+                      {expandedFrag === i && f.action_script && (
+                        <tr><td colSpan={7} style={{ padding:'0 14px 14px' }}>
+                          <pre className="sql-block">{f.action_script}</pre>
+                          <button className="copy-btn" style={{ marginTop:6 }} onClick={() => copy(f.action_script)}>📋 Copier</button>
+                        </td></tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </ResizableTable>
               </div>
             )}
           </div>
@@ -727,25 +728,24 @@ export default function Dashboard() {
              errors.blocking  ? <div className="error-box">{errors.blocking}</div> :
              blocking.length === 0 ? <div className="card"><div className="empty-state">✅ Aucun blocage actif — tout va bien!</div></div> : (
               <div className="card">
-                <div className="data-table-wrap">
-                  <table className="data-table">
-                    <thead><tr><th>SPID</th><th>Bloqué par</th><th>Base</th><th>Login</th><th>Hôte</th><th>Commande</th><th className="text-right">Attente</th><th>Requête</th></tr></thead>
-                    <tbody>
-                      {blocking.map((b, i) => (
-                        <tr key={i} style={{ background: b.blocking_session_id > 0 ? 'rgba(239,68,68,0.04)' : undefined }}>
-                          <td className="text-mono" style={{ fontWeight:700 }}>{b.session_id}</td>
-                          <td className="text-mono">{b.blocking_session_id > 0 ? <span style={{ color:'#ef4444', fontWeight:700 }}>→ {b.blocking_session_id}</span> : <span style={{ color:'#10b981' }}>BLOQUANT</span>}</td>
-                          <td><span className="badge badge-neutral">{b.database_name}</span></td>
-                          <td className="text-sm">{b.login_name}</td>
-                          <td className="text-sm">{b.host_name}</td>
-                          <td><span className="badge badge-neutral">{b.command}</span></td>
-                          <td className="text-right text-mono" style={{ color: b.wait_time_ms > 30000 ? '#ef4444' : 'var(--text)' }}>{fmtMs(b.wait_time_ms)}</td>
-                          <td style={{ maxWidth:200 }}><code style={{ fontSize:10, color:'#a5b4fc', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.query_text?.trim().slice(0,80)}</code></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ResizableTable columns={[
+                  {label:'SPID'},{label:'Bloqué par'},{label:'Base'},
+                  {label:'Login'},{label:'Hôte'},{label:'Commande'},
+                  {label:'Attente',className:'text-right'},{label:'Requête'},
+                ]}>
+                  {blocking.map((b, i) => (
+                    <tr key={i} style={{ background: b.blocking_session_id > 0 ? 'rgba(239,68,68,0.04)' : undefined }}>
+                      <td className="text-mono" style={{ fontWeight:700 }}>{b.session_id}</td>
+                      <td className="text-mono">{b.blocking_session_id > 0 ? <span style={{ color:'#ef4444', fontWeight:700 }}>→ {b.blocking_session_id}</span> : <span style={{ color:'#10b981' }}>BLOQUANT</span>}</td>
+                      <td><span className="badge badge-neutral">{b.database_name}</span></td>
+                      <td className="text-sm">{b.login_name}</td>
+                      <td className="text-sm">{b.host_name}</td>
+                      <td><span className="badge badge-neutral">{b.command}</span></td>
+                      <td className="text-right text-mono" style={{ color: b.wait_time_ms > 30000 ? '#ef4444' : 'var(--text)' }}>{fmtMs(b.wait_time_ms)}</td>
+                      <td style={{ maxWidth:200 }}><code style={{ fontSize:10, color:'#a5b4fc', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.query_text?.trim().slice(0,80)}</code></td>
+                    </tr>
+                  ))}
+                </ResizableTable>
               </div>
             )}
           </div>
