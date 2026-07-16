@@ -1,10 +1,10 @@
 {
   "server": "10.10.10.14",
-  "database": "Solstice",
+  "database": "master",
   "user": "sa",
   "password": "$$Akk555$$",
   "port": 1433,
-  "encrypt": true,
+  "encrypt": false,
   "trustServerCertificate": true,
   "windowsAuth": false,
   "domain": ""
