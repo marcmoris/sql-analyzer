@@ -5,5 +5,7 @@
   "password": "$$Akk555$$",
   "port": 1433,
   "encrypt": true,
-  "trustServerCertificate": true
+  "trustServerCertificate": true,
+  "windowsAuth": false,
+  "domain": ""
 }

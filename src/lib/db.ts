@@ -61,13 +61,12 @@ export async function getPool(): Promise<sql.ConnectionPool> {
   };
 
   if (cfg.windowsAuth) {
-    // Windows Authentication — use Kerberos/NTLM via domain option
-    poolConfig.domain = cfg.domain || undefined;
+    // Windows Authentication via NTLM
     poolConfig.authentication = {
       type: 'ntlm',
       options: {
-        domain:   cfg.domain || '',
-        userName: cfg.user    || '',
+        domain:   cfg.domain   || '',
+        userName: cfg.user     || '',
         password: cfg.password || '',
       },
     };
@@ -77,7 +76,14 @@ export async function getPool(): Promise<sql.ConnectionPool> {
   }
 
   _pool = new sql.ConnectionPool(poolConfig);
-  await _pool.connect();
+  try {
+    await _pool.connect();
+  } catch (err) {
+    // Ensure a failed pool doesn't get cached
+    try { await _pool.close(); } catch { /* ignore */ }
+    _pool = null;
+    throw err;
+  }
   return _pool;
 }
 
