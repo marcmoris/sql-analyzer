@@ -14,6 +14,7 @@ interface IndexRow  { database_name: string; table_name: string; index_name: str
 interface FragRow   { database_name: string; table_name: string; index_name: string; avg_fragmentation_pct: number; page_count: number; recommendation: string; action_script: string; }
 interface BlockRow  { session_id: number; blocking_session_id: number; wait_type: string; wait_time_ms: number; status: string; command: string; database_name: string; login_name: string; host_name: string; query_text: string; }
 interface Health    { version: string; edition: string; cpuCount: number; memTotal: number; memInUse: number; memPct: number; activeConnections: number; uptimeHours: number; databases: { name: string; sizeGb: number }[]; }
+interface WorkloadRow { group_name: string; [counter: string]: string | number; }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const fmt  = (n: number, d = 0) => n?.toLocaleString('fr-CA', { maximumFractionDigits: d }) ?? '—';
@@ -71,9 +72,10 @@ export default function Dashboard() {
   const [idxUsage,  setIdxUsage]  = useState<IndexRow[]>([]);
   const [fragData,  setFragData]  = useState<FragRow[]>([]);
   const [blocking,  setBlocking]  = useState<BlockRow[]>([]);
+  const [workload,  setWorkload]  = useState<WorkloadRow[]>([]);
 
   // ── UI state
-  const [activeTab,     setActiveTab]    = useState<'health'|'waits'|'missing'|'queries'|'indexes'|'frag'|'blocking'|'charts'>('health');
+  const [activeTab,     setActiveTab]    = useState<'health'|'waits'|'missing'|'queries'|'indexes'|'frag'|'blocking'|'workload'|'charts'>('health');
   const [loading,       setLoading]      = useState<Record<string, boolean>>({});
   const [errors,        setErrors]       = useState<Record<string, string>>({});
   const [querySortBy,   setQuerySortBy]  = useState<'cpu'|'reads'|'duration'|'exec'>('cpu');
@@ -132,6 +134,7 @@ export default function Dashboard() {
   const loadIdxUsage  = useCallback(() => load('indexes',  dbParam('/api/analyze/index-usage'),   d => setIdxUsage(d as IndexRow[])), [selectedDb]);
   const loadFrag      = useCallback(() => load('frag',     dbParam('/api/analyze/fragmentation'),  d => setFragData(d as FragRow[])), [selectedDb]);
   const loadBlocking  = useCallback(() => load('blocking', dbParam('/api/analyze/blocking'),       d => setBlocking(d as BlockRow[])), [selectedDb]);
+  const loadWorkload  = useCallback(() => load('workload', '/api/analyze/workload-stats',            d => setWorkload(d as WorkloadRow[])), []);
 
   // ── Re-load on tab change
   useEffect(() => {
@@ -140,6 +143,7 @@ export default function Dashboard() {
     if (activeTab === 'indexes'  && idxUsage.length   === 0) loadIdxUsage();
     if (activeTab === 'frag'     && fragData.length    === 0) loadFrag();
     if (activeTab === 'blocking')                            loadBlocking();
+    if (activeTab === 'workload' && workload.length    === 0) loadWorkload();
   }, [activeTab]);
 
   // ── Re-load all data when selected DB changes
@@ -185,7 +189,7 @@ export default function Dashboard() {
   const handleDisconnect = async () => {
     await fetch('/api/connect', { method: 'DELETE' });
     setIsConnected(false); setConnInfo(null); setHealth(null);
-    setWaitStats([]); setMissingIdx([]); setQueries([]); setIdxUsage([]); setFragData([]); setBlocking([]);
+    setWaitStats([]); setMissingIdx([]); setQueries([]); setIdxUsage([]); setFragData([]); setBlocking([]); setWorkload([]);
   };
 
   if (!isConnected) return (
@@ -289,6 +293,7 @@ export default function Dashboard() {
     { id: 'indexes',  icon: '📊', label: 'Index usage'  },
     { id: 'frag',     icon: '🧩', label: 'Fragmentation' },
     { id: 'blocking', icon: '🚧', label: 'Blocages'     },
+    { id: 'workload', icon: '⚙️', label: 'Workload Stats' },
     { id: 'charts',   icon: '📈', label: 'Graphiques'   },
   ] as const;
 
@@ -696,6 +701,58 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* ── Tab: Workload Group Stats ── */}
+        {activeTab === 'workload' && (() => {
+          // Derive counter column headers from data (excluding group_name)
+          const counterKeys = workload.length > 0
+            ? Object.keys(workload[0]).filter(k => k !== 'group_name')
+            : [];
+          return (
+            <div>
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+                <h2 style={{ fontSize:16, fontWeight:700 }}>⚙️ Workload Group Stats</h2>
+                <button className="btn btn-ghost btn-sm" onClick={loadWorkload} disabled={loading.workload}>
+                  {loading.workload ? <div className="spinner"/> : '↻ Actualiser'}
+                </button>
+                <span className="text-muted text-sm" style={{ marginLeft:'auto' }}>Source : sys.dm_os_performance_counters — Workload Group Stats</span>
+              </div>
+              {loading.workload ? <div className="loading-state"><div className="spinner"/> Chargement…</div> :
+               errors.workload  ? <div className="error-box">{errors.workload}</div> :
+               workload.length === 0 ? <div className="empty-state">Aucune donnée — les Workload Groups ne sont peut-être pas configurés sur ce serveur.</div> : (
+                <div className="card" style={{ overflowX: 'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign:'left', padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'var(--text-muted)', fontWeight:600, whiteSpace:'nowrap', position:'sticky', left:0, background:'var(--card-bg, #1a1d2e)', zIndex:1 }}>Groupe</th>
+                        {counterKeys.map(k => (
+                          <th key={k} style={{ textAlign:'right', padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'var(--text-muted)', fontWeight:600, whiteSpace:'nowrap' }}>{k}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {workload.map((row, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding:'7px 12px', fontWeight:700, color:'var(--text)', whiteSpace:'nowrap', borderBottom:'1px solid rgba(255,255,255,0.04)', position:'sticky', left:0, background: i % 2 === 0 ? 'var(--card-bg, #1a1d2e)' : '#1c1f31', zIndex:1 }}>
+                            <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:4, background:'rgba(99,102,241,0.12)', color:'#a5b4fc', fontSize:11 }}>{row.group_name || 'default'}</span>
+                          </td>
+                          {counterKeys.map(k => {
+                            const val = (row[k] as number) ?? 0;
+                            return (
+                              <td key={k} className="text-right text-mono" style={{ padding:'7px 12px', borderBottom:'1px solid rgba(255,255,255,0.04)', color: val > 0 ? 'var(--text)' : 'var(--text-muted)' }}>
+                                {fmt(val)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Tab: Charts ── */}
         {activeTab === 'charts' && (
