@@ -80,6 +80,7 @@ export default function Dashboard() {
   const [errors,        setErrors]       = useState<Record<string, string>>({});
   const [querySortBy,   setQuerySortBy]  = useState<'cpu'|'reads'|'duration'|'exec'>('cpu');
   const [expandedQuery, setExpandedQuery] = useState<number | null>(null);
+  const [queryTableFilter, setQueryTableFilter] = useState<string>('');
   const [expandedIdx,   setExpandedIdx]  = useState<number | null>(null);
   const [expandedFrag,  setExpandedFrag] = useState<number | null>(null);
   const [copiedIdx,     setCopiedIdx]    = useState<number | null>(null);
@@ -533,6 +534,27 @@ export default function Dashboard() {
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
               <h2 style={{ fontSize:16, fontWeight:700 }}>🔥 Top Requêtes</h2>
+              <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
+                <span style={{ position:'absolute', left:10, color:'#6b7280', fontSize:14, pointerEvents:'none' }}>🔍</span>
+                <input
+                  type="text"
+                  placeholder="Filtrer par nom de table…"
+                  value={queryTableFilter}
+                  onChange={e => { setQueryTableFilter(e.target.value); setExpandedQuery(null); }}
+                  style={{
+                    paddingLeft:32, paddingRight:10, paddingTop:6, paddingBottom:6,
+                    background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)',
+                    borderRadius:8, color:'#e2e8f0', fontSize:13, outline:'none', width:220,
+                  }}
+                />
+                {queryTableFilter && (
+                  <button
+                    onClick={() => { setQueryTableFilter(''); setExpandedQuery(null); }}
+                    style={{ position:'absolute', right:8, background:'none', border:'none', color:'#6b7280', cursor:'pointer', fontSize:16, lineHeight:1, padding:0 }}
+                    title="Effacer le filtre"
+                  >×</button>
+                )}
+              </div>
               <div style={{ display:'flex', gap:6, marginLeft:'auto' }}>
                 {(['cpu','reads','duration','exec'] as const).map(s => (
                   <button key={s} className={`tab-btn btn-sm ${querySortBy===s?'active':''}`}
@@ -556,7 +578,9 @@ export default function Dashboard() {
                   {label:'Lectures',  className:'text-right'},
                   {label:'Durée moy.',className:'text-right'},
                 ]}>
-                  {queries.map((q, i) => (
+                  {queries
+                    .filter(q => !queryTableFilter || q.query_text?.toLowerCase().includes(queryTableFilter.toLowerCase()))
+                    .map((q, i) => (
                     <React.Fragment key={i}>
                       <tr style={{ cursor:'pointer' }} onClick={() => setExpandedQuery(expandedQuery===i?null:i)}>
                         <td style={{ maxWidth:400 }}>
